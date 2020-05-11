@@ -8,22 +8,219 @@ date: "5/11/2020"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Introduction
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+When measuring a new model's miles per gallon (mpg) range, automobile manufacturers follow complicated EPA rules that involve multiple drive cycles and formulas. I aim to investigate a dataset of cars to evaluate whether we can predict mpg from a car's other features rather than physically conducting road tests.
 
-```{r cars}
-summary(cars)
+The dataset used for this analysis was published in 1983 and contains data on 398 cars. There are 5 continuous predictors and 3 discrete, multi-valued predictors: 
+  number of cylinders
+  engine displacement in cubic inches
+  horsepower
+  weight in pounds
+  time it takes to accelerate from 0 to 60 mph in seconds
+  model year from 1900
+  model origin (1. American 2. European 3. Japanese)
+  car name. 
+
+According to the dataset's source, UCI Dataset Archive, it was presented at the American Statistical Association's 1983 Exposition, so we don't need to be concerned with data collection errors or missing values. My principal goal is interpretability of model coefficients rather than best prediction accuracy, so I won't scale the variables.
+
+```{r message=FALSE, warning=FALSE }
+library(GGally)
+library(car)
+library(MASS)
+library(tidyverse)
+library(glmnet)
+
+# read the data
+mpg.dat <- read.table("http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data", 
+                      header = FALSE)
+colnames(mpg.dat) <- c("mpg", "cylinders", "displacement", "horsepower", "weight", "acceleration", 
+                       "model.year", "origin", "car.name")
+
+# modify predictor types
+mpg.dat$cylinders <- as.numeric(mpg.dat$cylinders)
+mpg.dat$horsepower <- as.numeric(mpg.dat$horsepower)
+mpg.dat$origin <- as.factor(mpg.dat$origin)
+
+# remove car name from dataset
+mpg.dat <- mpg.dat[ , !(names(mpg.dat) %in% c("car.name"))]
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+str(mpg.dat)
+```
+ 
+```{r}
+summary(mpg.dat)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+One quick take-away from this paired plot is that some of the explanatory variables are strongly correlated with each other. For example, the Pearson correlation between displacement and weight is $\rho=0.933$. We may have redundant covariates if we use all of them in a full model.
+
+```{r warning=FALSE, message=FALSE}
+GGally::ggpairs(mpg.dat)
+```
+
+# Model Fitting
+
+## OLS Linear Regression
+
+### Fitting a full model
+
+After fitting a full model with no interactions, we check model diagnostics:
+As shown in the Fitted Residuals plot, there is a slight quadratic shape to the residuals, so we'll proceed with caution with the linear model. Heteroskedasticity is clearly evident, we'll want to consider fixes for this condition. The QQ plot tells us that the errors are approximately normal, although there are some points that deviate from normality on the upper tail. Multicollinearity may also be an issue as the VIF table shows that Cylinders, Displacement, and Weight have the highest VIF values, meaning their coefficients have the highest variance and are not stable.  
+
+Large residuals? All 5 cars with the greatest square root absolute standardized residuals belong to European or Japanese origin. I suspect that shifting the best fit line by the Origin coefficient is a reason, and the fix may be to allow interactions between Origin and other covariates.
+
+```{r}
+# full model with no interactions
+full.model <- lm(mpg~., data=mpg.dat)
+summary(full.model)
+
+plot(full.model)
+```
+
+```{r}
+vif(full.model)
+```
+
+These are the cars with largest residuals and hat values.
+```{r}
+tail(mpg.dat[order(abs(full.model$residuals)), ])
+tail(mpg.dat[order(hatvalues(full.model)),])
+# rstandard()
+# hatvalues()
+```
+
+## Trying a non-linear transformation
+
+Fixes for a non-linear relationship: Transform the response variable mpg.
+The Box-Cox method suggests a lambda close to 0, which means a log-transformation of the response.
+
+```{r}
+bc = boxcox(full.model)
+bc$x[which.min(abs(bc$x-0))]
+bc$x[which.min(abs(bc$x+0.5))]
+```
+
+Once we regressed the log of mpg on the predictors, the residuals are no longer displaying the heteroskedasticity we saw before, while there is still no apparent non-linear shape and they are still approximately normal. The standardized residuals are also not as large as before. While the interpretability of the coefficients in relation to the response becomes less straightforward, the log transformation seems more appropriate.
+
+```{r}
+# the log-transform model
+mpg.dat <- mpg.dat %>% mutate(log.mpg = log(mpg))
+log.model <- lm(log.mpg~cylinders+displacement+horsepower+weight+acceleration+model.year+origin, data=mpg.dat)
+
+summary(log.model)
+plot(log.model)
+```
+
+But we still haven't addressed multicollinearity.
+
+```{r}
+vif(log.model)
+```
+
+## Fixing multicollinearity
+
+### Manual step-wise
+
+We could drop high-VIF predictors one-by-one.
+
+```{r}
+n = nrow(mpg.dat)
+
+log.model2 <- lm(log.mpg~cylinders+horsepower+weight+acceleration+model.year+origin, data=mpg.dat)
+vif(log.model2)
+```
+
+```{r}
+log.model3 <- lm(log.mpg~horsepower+weight+acceleration+model.year+origin, data=mpg.dat)
+vif(log.model3)
+```
+
+### Automatic step-wise
+
+Or perform bidirectional stepwise regression using AIC criterion. 
+
+```{r}
+step.reg <- step(log.model, direction = "both", trace = 0)
+
+summary(step.reg)
+
+plot(step.reg)
+```
+
+Multicollinearity not an issue.
+```{r}
+vif(step.reg)
+
+mpg.dat <- mpg.dat %>% mutate("log.hats"=predict(step.reg))
+
+ggplot(mpg.dat, aes(model.year, exp(log.hats), colour = origin)) +
+  geom_point() +
+  labs(x="Years since 1900", y="Predicted mpg") +
+  scale_color_hue(labels = c("American", "European", "Japanese"))
+
+```
+
+```{r}
+avPlots(step.reg)
+```
+
+### LASSO regularization
+
+Now I want to try a regularization method for regressing the log(mpg). LASSO regularization allows coefficients to shrink to zero, which is acceptable since I know some covariates are not necessary.
+
+```{r}
+mpg.x = model.matrix(log.mpg ~ cylinders+displacement+horsepower+weight+acceleration+model.year+origin,
+                     data=mpg.dat)
+mpg.y = mpg.dat$log.mpg 
+
+mpg.fit.lasso = glmnet(mpg.x, mpg.y, alpha=1)
+
+plot(mpg.fit.lasso, xvar="lambda", label=TRUE)
+```
+
+
+```{r}
+# cross validation to find optimal lambda regularization parameter
+mpg.cv.lasso = cv.glmnet(mpg.x, mpg.y, alpha=1)
+plot(mpg.cv.lasso)
+coef(mpg.cv.lasso, s = "lambda.min")
+
+opt.lambda <- mpg.cv.lasso$lambda.min
+```
+
+LASSO regularization shrunk the coefficient for Displacement completely to zero. Our $R^2$ is slightly higher than the stepwise regression model.
+
+```{r}
+x <- mpg.x
+y_predicted <- predict(mpg.fit.lasso, s = opt.lambda, newx=mpg.x)
+y <- mpg.y
+
+# Sum of Squares Total and Error
+ssto <- sum((y - mean(y))^2)
+sse <- sum((y_predicted - y)^2)
+
+# R squared
+rsq <- 1 - sse / ssto
+rsq
+
+```
+
+Further research:
+  Interaction terms (the response might vary differently according to the car origin).
+  Use more recent data (the dataset is from 1983).
+  Different algorithms to decrease MSE.
+  
+What if we tried IRLS on a non-transformed response to address heteroskedasticity? I still see a slight curved shape to the fitted residuals, which could mean that a linear relationship is not the most appropriate.
+
+```{r warning=FALSE, message=FALSE}
+library(nlme)
+mpg.irls <- gls(mpg~cylinders+displacement+weight+acceleration+model.year+origin, 
+            weights=varPower(), 
+            data=mpg.dat)
+
+summary(mpg.irls)
+plot(mpg.irls)
+```
