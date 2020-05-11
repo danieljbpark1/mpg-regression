@@ -6,7 +6,7 @@ navbar:
     - text: "Home"
       href: index.html
     - text: "Linear Regression methods"
-      href: mpg-regression.html
+      href: Regression-Methods-for-Predicting-MPG.html
 output:
 html_document:
 theme: cayman
