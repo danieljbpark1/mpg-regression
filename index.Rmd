@@ -1,7 +1,8 @@
 ---
-title: "Regression Methods for Predicting MPG"
+title: "index"
 author: "Daniel J. Park"
 date: "5/11/2020"
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
