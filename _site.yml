@@ -1,0 +1,12 @@
+name: "mpg-regression"
+output_dir: "docs"
+navbar:
+  title: "Regression Methods for Predicting MPG"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Linear Regression methods"
+      href: mpg-regression.html
+output:
+html_document:
+theme: cayman
