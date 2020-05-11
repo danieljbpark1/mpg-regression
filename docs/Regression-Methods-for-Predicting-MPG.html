@@ -556,16 +556,16 @@ plot(mpg.cv.lasso)</code></pre>
 <pre class="r"><code>coef(mpg.cv.lasso, s = &quot;lambda.min&quot;)</code></pre>
 <pre><code>## 10 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
 ##                          1
-## (Intercept)   1.4763097206
+## (Intercept)   1.4839800014
 ## (Intercept)   .           
-## cylinders    -0.0025029923
+## cylinders    -0.0026984864
 ## displacement  .           
-## horsepower    0.0004098311
-## weight       -0.0002728168
-## acceleration  0.0028240147
-## model.year    0.0310745562
-## origin2       0.0656837059
-## origin3       0.0531654265</code></pre>
+## horsepower    0.0004020441
+## weight       -0.0002727694
+## acceleration  0.0027589503
+## model.year    0.0310092286
+## origin2       0.0646169227
+## origin3       0.0522665112</code></pre>
 <pre class="r"><code>opt.lambda &lt;- mpg.cv.lasso$lambda.min</code></pre>
 <p>LASSO regularization shrunk the coefficient for Displacement completely to zero. Our <span class="math inline">\(R^2\)</span> is slightly higher than the stepwise regression model.</p>
 <pre class="r"><code>x &lt;- mpg.x
@@ -579,7 +579,7 @@ sse &lt;- sum((y_predicted - y)^2)
 # R squared
 rsq &lt;- 1 - sse / ssto
 rsq</code></pre>
-<pre><code>## [1] 0.8788985</code></pre>
+<pre><code>## [1] 0.8788694</code></pre>
 <p>Further research: Interaction terms (the response might vary differently according to the car origin). Use more recent data (the dataset is from 1983). Different algorithms to decrease MSE.</p>
 <p>What if we tried IRLS on a non-transformed response to address heteroskedasticity? I still see a slight curved shape to the fitted residuals, which could mean that a linear relationship is not the most appropriate.</p>
 <pre class="r"><code>library(nlme)
