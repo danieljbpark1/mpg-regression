@@ -209,9 +209,19 @@ rsq
 ```
 
 Further research:
-  Interaction terms (the response might vary differently according to the car origin).
-  Use more recent data (the dataset is from 1983).
-  Different algorithms to decrease MSE.
+  Interaction terms (the response might vary differently according to the car origin). At first, the interaction terms don't look significant and may not be parsimonious.
+  
+```{r}
+model.interact <- lm(log.mpg ~ horsepower*origin + 
+                      weight*origin +
+                      model.year*origin,
+                     data = mpg.dat)
+summary(model.interact)
+```
+
+  Use more recent data (the dataset is from 1983). \n
+  Different algorithms to decrease MSE. \n 
+    Regression trees, GAMs.
   
 What if we tried IRLS on a non-transformed response to address heteroskedasticity? I still see a slight curved shape to the fitted residuals, which could mean that a linear relationship is not the most appropriate.
 
@@ -224,3 +234,5 @@ mpg.irls <- gls(mpg~cylinders+displacement+weight+acceleration+model.year+origin
 summary(mpg.irls)
 plot(mpg.irls)
 ```
+
+

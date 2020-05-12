@@ -580,7 +580,42 @@ sse &lt;- sum((y_predicted - y)^2)
 rsq &lt;- 1 - sse / ssto
 rsq</code></pre>
 <pre><code>## [1] 0.8788694</code></pre>
-<p>Further research: Interaction terms (the response might vary differently according to the car origin). Use more recent data (the dataset is from 1983). Different algorithms to decrease MSE.</p>
+<p>Further research: Interaction terms (the response might vary differently according to the car origin). At first, the interaction terms don’t look significant and may not be parsimonious.</p>
+<pre class="r"><code>model.interact &lt;- lm(log.mpg ~ horsepower*origin + 
+                      weight*origin +
+                      model.year*origin,
+                     data = mpg.dat)
+summary(model.interact)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = log.mpg ~ horsepower * origin + weight * origin + 
+##     model.year * origin, data = mpg.dat)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.40983 -0.06802  0.00546  0.07019  0.38421 
+## 
+## Coefficients:
+##                      Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)         1.606e+00  1.849e-01   8.688  &lt; 2e-16 ***
+## horsepower          4.268e-04  2.752e-04   1.551  0.12176    
+## origin2            -7.235e-01  3.688e-01  -1.962  0.05052 .  
+## origin3             1.212e-02  3.753e-01   0.032  0.97426    
+## weight             -2.751e-04  1.126e-05 -24.422  &lt; 2e-16 ***
+## model.year          2.978e-02  2.209e-03  13.480  &lt; 2e-16 ***
+## horsepower:origin2  1.055e-03  6.017e-04   1.753  0.08045 .  
+## horsepower:origin3 -3.675e-04  6.719e-04  -0.547  0.58475    
+## origin2:weight     -2.986e-05  3.175e-05  -0.941  0.34747    
+## origin3:weight     -1.133e-04  4.342e-05  -2.609  0.00944 ** 
+## origin2:model.year  1.072e-02  4.692e-03   2.285  0.02286 *  
+## origin3:model.year  4.254e-03  4.421e-03   0.962  0.33657    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 0.1175 on 386 degrees of freedom
+## Multiple R-squared:  0.8836, Adjusted R-squared:  0.8803 
+## F-statistic: 266.5 on 11 and 386 DF,  p-value: &lt; 2.2e-16</code></pre>
+<p>Use more recent data (the dataset is from 1983).  Different algorithms to decrease MSE.  Regression trees, GAMs.</p>
 <p>What if we tried IRLS on a non-transformed response to address heteroskedasticity? I still see a slight curved shape to the fitted residuals, which could mean that a linear relationship is not the most appropriate.</p>
 <pre class="r"><code>library(nlme)
 mpg.irls &lt;- gls(mpg~cylinders+displacement+weight+acceleration+model.year+origin, 
@@ -629,7 +664,7 @@ summary(mpg.irls)</code></pre>
 ## Residual standard error: 0.02708439 
 ## Degrees of freedom: 398 total; 390 residual</code></pre>
 <pre class="r"><code>plot(mpg.irls)</code></pre>
-<p><img src="Regression-Methods-for-Predicting-MPG_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p><img src="Regression-Methods-for-Predicting-MPG_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
 </div>
 </div>
 </div>
